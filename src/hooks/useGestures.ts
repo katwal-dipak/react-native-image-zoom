@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   Gesture,
   GestureStateChangeEvent,
@@ -13,6 +13,7 @@ import {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import {Dimensions} from 'react-native';
 
 import { clamp } from '../helpers';
 
@@ -36,6 +37,8 @@ export const useGestures = ({
   onPinchEnd,
   onPanStart,
   onPanEnd,
+  onSingleTap,
+  enableZoomInMode,
 }: ImageZoomUseGesturesProps) => {
   const isInteracting = useRef(false);
   const isPanning = useRef(false);
@@ -49,17 +52,26 @@ export const useGestures = ({
   const prevTranslate = { x: useSharedValue(0), y: useSharedValue(0) };
   const translate = { x: useSharedValue(0), y: useSharedValue(0) };
 
+
+  const {height: screenHeight, width: screenWidth} = Dimensions.get('window');
+
   const moveIntoView = () => {
     'worklet';
     if (scale.value > 1) {
-      const rightLimit = (width * (scale.value - 1)) / 2;
+      // Calculate zoomed dimensions of the image
+      const zoomedWidth = width * scale.value;
+      const zoomedHeight = height * scale.value;
+  
+      // Adjust limits based on zoomed dimensions
+      const rightLimit = zoomedWidth > screenWidth ? (zoomedWidth - screenWidth) / 2 : (width * (scale.value - 1)) / 2;
       const leftLimit = -rightLimit;
-      const totalTranslateX = translate.x.value + focal.x.value;
-
-      const bottomLimit = (height * (scale.value - 1)) / 2;
+      const bottomLimit = zoomedHeight > screenHeight ? (zoomedHeight - screenHeight) / 2 : (height * (scale.value - 1)) / 2;
       const topLimit = -bottomLimit;
+  
+      const totalTranslateX = translate.x.value + focal.x.value;
       const totalTranslateY = translate.y.value + focal.y.value;
-
+  
+      // Apply adjusted limits to translation values
       if (totalTranslateX > rightLimit) {
         translate.x.value = withTiming(rightLimit);
         focal.x.value = withTiming(0);
@@ -67,7 +79,7 @@ export const useGestures = ({
         translate.x.value = withTiming(leftLimit);
         focal.x.value = withTiming(0);
       }
-
+  
       if (totalTranslateY > bottomLimit) {
         translate.y.value = withTiming(bottomLimit);
         focal.y.value = withTiming(0);
@@ -76,6 +88,7 @@ export const useGestures = ({
         focal.y.value = withTiming(0);
       }
     } else {
+      // Reset translation and focal point if not zoomed in
       translate.x.value = withTiming(0);
       focal.x.value = withTiming(0);
       translate.y.value = withTiming(0);
@@ -220,6 +233,35 @@ export const useGestures = ({
       }
     );
 
+    const onStartSingleTap = () => {
+      onSingleTap?.(scale?.value)
+    };
+
+    const singleTapGesture = Gesture.Tap()
+    .enabled(true)
+    .numberOfTaps(1)
+    .maxDuration(250)
+    .onStart(
+      (event: GestureStateChangeEvent<TapGestureHandlerEventPayload>) => {
+        if (scale.value === 1) {
+          scale.value = withTiming(minScale);
+          runOnJS(onStartSingleTap)();
+        }else if(scale.value === minScale){
+          reset()
+          runOnJS(onStartSingleTap)();
+        }
+      }
+    );
+
+
+    const onChangeImageMode = () =>{
+      if(!enableZoomInMode){
+        scale.value = withTiming(minScale);
+      } else{
+        reset()
+      }
+    }
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translate.x.value },
@@ -230,10 +272,10 @@ export const useGestures = ({
     ],
   }));
 
-  const simultaneousGestures = Gesture.Simultaneous(pinchGesture, panGesture);
-  const gestures = isDoubleTapEnabled
-    ? Gesture.Race(doubleTapGesture, simultaneousGestures)
-    : simultaneousGestures;
 
-  return { gestures, animatedStyle, reset };
+  const simultaneousGestures = Gesture.Simultaneous(pinchGesture, panGesture);
+  const tapGestures = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
+  const gestures = Gesture.Simultaneous(simultaneousGestures, tapGestures);
+
+  return { gestures, animatedStyle, reset, onChangeImageMode };
 };

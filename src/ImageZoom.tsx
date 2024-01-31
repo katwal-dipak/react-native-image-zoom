@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
@@ -32,13 +32,15 @@ export default forwardRef(function ImageZoom(
     onPanStart,
     onPanEnd,
     onLayout,
+    onSingleTap,
+    enableZoomInMode,
     style = {},
     ...props
   }: ImageZoomProps,
   ref
 ) {
   const { width, height, center, onImageLayout } = useImageLayout({ onLayout });
-  const { animatedStyle, gestures, reset } = useGestures({
+  const { animatedStyle, gestures, reset , onChangeImageMode} = useGestures({
     width,
     height,
     center,
@@ -56,6 +58,8 @@ export default forwardRef(function ImageZoom(
     onPinchEnd,
     onPanStart,
     onPanEnd,
+    onSingleTap,
+    enableZoomInMode
   });
 
   useImperativeHandle(
@@ -70,9 +74,13 @@ export default forwardRef(function ImageZoom(
     [reset]
   );
 
+  useEffect(() => {
+    onChangeImageMode()
+  }, [enableZoomInMode]);
+
   return (
     <GestureDetector gesture={gestures}>
-      <Animated.Image
+        <Animated.Image
         style={[styles.image, style, animatedStyle]}
         source={{ uri }}
         resizeMode="contain"

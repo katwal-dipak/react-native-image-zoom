@@ -73,6 +73,9 @@ export type ImageZoomProps = Omit<ImageProps, 'source'> & {
    * @default undefined
    */
   source?: ImageSourcePropType;
+
+  onSingleTap?: (scale: number | null | undefined) => void
+  enableZoomInMode?:boolean
 };
 
 export type ImageZoomRef = {
@@ -136,4 +139,6 @@ export type ImageZoomUseGesturesProps = Pick<
     | 'onPinchEnd'
     | 'onPanStart'
     | 'onPanEnd'
+    |'onSingleTap'
+    |'enableZoomInMode'
   >;
