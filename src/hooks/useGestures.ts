@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   Gesture,
   GestureStateChangeEvent,
@@ -242,7 +242,7 @@ export const useGestures = ({
     .numberOfTaps(1)
     .maxDuration(250)
     .onStart(
-      (event: GestureStateChangeEvent<TapGestureHandlerEventPayload>) => {
+      () => {
         if (scale.value === 1) {
           scale.value = withTiming(minScale);
           runOnJS(onStartSingleTap)();
