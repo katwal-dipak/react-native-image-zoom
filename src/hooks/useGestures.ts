@@ -46,7 +46,7 @@ export const useGestures = ({
 
   const prevScale = useSharedValue(1);
   const scale = useSharedValue(1);
-  const initialFocal = { x: useSharedValue(0), y: useSharedValue(0) };
+  const initialFocal = { x: useSharedValue(0), y: useSharedValue(0) }; 
   const prevFocal = { x: useSharedValue(0), y: useSharedValue(0) };
   const focal = { x: useSharedValue(0), y: useSharedValue(0) };
   const prevTranslate = { x: useSharedValue(0), y: useSharedValue(0) };
@@ -57,7 +57,7 @@ export const useGestures = ({
 
   const moveIntoView = () => {
     'worklet';
-    if (scale.value > 1) {
+    // if (scale.value > 1) {
       // Calculate zoomed dimensions of the image
       const zoomedWidth = width * scale.value;
       const zoomedHeight = height * scale.value;
@@ -87,14 +87,20 @@ export const useGestures = ({
         translate.y.value = withTiming(topLimit);
         focal.y.value = withTiming(0);
       }
-    } else {
-      // Reset translation and focal point if not zoomed in
-      translate.x.value = withTiming(0);
-      focal.x.value = withTiming(0);
-      translate.y.value = withTiming(0);
-      focal.y.value = withTiming(0);
-    }
-  };
+
+      if (scale.value < 1 && scale.value !== minScale) {
+        translate.y.value = withTiming(0);
+        focal.y.value = withTiming(0);
+      }
+
+      if (scale.value === minScale) {
+        // Reset translation and focal point if not zoomed in
+        translate.x.value = withTiming(0);
+        focal.x.value = withTiming(0);
+        translate.y.value = withTiming(0);
+        focal.y.value = withTiming(0);
+      }
+   };
 
   const reset = useCallback(() => {
     'worklet';
@@ -216,9 +222,13 @@ export const useGestures = ({
     .maxDuration(250)
     .onStart(
       (event: GestureStateChangeEvent<TapGestureHandlerEventPayload>) => {
-        console.log('Double tap!');
+      if ( isPinching.current === true || isPanning.current === true){
+         return
+      }
+
+       // console.log('Double tap!');
         if (scale.value === 1) {
-          console.log('Zoom in!');
+         // console.log('Zoom in!');
           scale.value = withTiming(doubleTapScale);
           focal.x.value = withTiming(
             (center.x - event.x) * (doubleTapScale - 1)
@@ -227,7 +237,7 @@ export const useGestures = ({
             (center.y - event.y) * (doubleTapScale - 1)
           );
         } else {
-          console.log('Zoom out!');
+         // console.log('Zoom out!');
           reset();
         }
       }
@@ -243,6 +253,10 @@ export const useGestures = ({
     .maxDuration(250)
     .onStart(
       () => {
+        if ( isPinching.current === true || isPanning.current === true){
+           return
+        }
+
         if (scale.value === 1) {
           scale.value = withTiming(minScale);
           runOnJS(onStartSingleTap)();
@@ -275,7 +289,7 @@ export const useGestures = ({
 
   const simultaneousGestures = Gesture.Simultaneous(pinchGesture, panGesture);
   const tapGestures = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
-  const gestures = Gesture.Simultaneous(simultaneousGestures, tapGestures);
+  const gestures = Gesture.Exclusive(simultaneousGestures, tapGestures);
 
   return { gestures, animatedStyle, reset, onChangeImageMode };
 };
